@@ -1,0 +1,278 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "8c32810d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Importing necessary libraries:\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import seaborn as sns\n",
+    "import matplotlib as mpl\n",
+    "import matplotlib.pyplot as plt \n",
+    "import os\n",
+    "import random"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "id": "a04fadfe",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Importing datasets:\n",
+    "covid_date = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/covid_date.feather')\n",
+    "fitbit_activities_fairly = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_activities_fairly.feather')\n",
+    "fitbit_activities_sedentary = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_activities_sedentary.feather')\n",
+    "fitbit_activities_very = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_activities_very.feather')\n",
+    "fitbit_bmi = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_bmi.feather')\n",
+    "fitbit_calories = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_calories.feather')\n",
+    "fitbit_distance = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_distance.feather')\n",
+    "fitbit_hr = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_hr.feather')\n",
+    "fitbit_hrv = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_hrv.feather')\n",
+    "fitbit_sleep = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_sleep.feather')\n",
+    "fitbit_steps = pd.read_feather('/Users/MeshaelAlrasheed/Desktop/Master/AI/Datasets/fitbit_steps.feather')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "id": "262b8e49",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Deleting unneeded coloumns:\n",
+    "fitbit_hr = fitbit_hr.loc[:,('user_id', 'dateTime', 'rhr')] \n",
+    "fitbit_hrv = fitbit_hrv.loc[:,('user_id', 'datetime', 'dailyRMSSD')] \n",
+    "fitbit_sleep = fitbit_sleep.loc[:,('user_id', 'date_of_sleep', 'efficiency', 'duration')] "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "id": "061e77a9",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Preparing df for merging:\n",
+    "fitbit_hr = fitbit_hr.rename(columns={'dateTime': 'datetime'})\n",
+    "fitbit_sleep = fitbit_hr.rename(columns={'date_of_sleep': 'datetime'}) "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "id": "350b6dd6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Merging fitbit dataframes:\n",
+    "\n",
+    "fitbit_dfs = [fitbit_hr, fitbit_hrv, fitbit_activities_fairly, fitbit_activities_sedentary, fitbit_activities_very,\n",
+    "              fitbit_bmi, fitbit_calories, fitbit_distance, fitbit_sleep, fitbit_steps]\n",
+    "\n",
+    "from functools import reduce\n",
+    "\n",
+    "fitbit_merged = reduce(lambda left,right: pd.merge(left,right,on=['user_id', 'datetime'], how='outer', \n",
+    "                sort=True), fitbit_dfs)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 52,
+   "id": "f7db9783",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Merging \"covid_date\" with the merged fitbit dataframes:\n",
+    "\n",
+    "dataframes = [covid_date, fitbit_merged]\n",
+    "\n",
+    "from functools import reduce\n",
+    "\n",
+    "all_merged = reduce(lambda left,right: pd.merge(left,right,on=['user_id'],\n",
+    "        how='left', sort=True), dataframes)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 53,
+   "id": "a2e15144",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Deleting unneeded coloums from the merged df:\n",
+    "\n",
+    "#Changing datetime:\n",
+    "import datetime as datetime\n",
+    "all_merged[\"date_illness\"] = pd.to_datetime(all_merged[\"date_illness\"]).dt.date\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 56,
+   "id": "92ac77e3",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#covid positive coloumn\n",
+    "all_merged.loc[all_merged[\"datetime\"] >= all_merged[\"date_illness\"], \"covid_positive\"] = \"yes\"\n",
+    "all_merged.loc[all_merged[\"datetime\"] < all_merged[\"date_illness\"], \"covid_positive\"] = \"no\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 79,
+   "id": "3d75b038",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "TypeError",
+     "evalue": "Cannot convert input [0         2017-01-18\n1         2017-01-19\n2         2017-01-20\n3         2017-01-21\n4         2017-01-22\n             ...    \n2569024   2022-06-23\n2569025   2022-06-24\n2569026   2022-06-25\n2569027   2022-06-26\n2569028   2022-06-27\nName: datetime, Length: 2569029, dtype: datetime64[ns]] of type <class 'pandas.core.series.Series'> to Timestamp",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mTypeError\u001b[0m                                 Traceback (most recent call last)",
+      "\u001b[0;32m/var/folders/pb/153ktjvx3jgbjd56166cc01h0000gn/T/ipykernel_56707/2081453489.py\u001b[0m in \u001b[0;36m<module>\u001b[0;34m\u001b[0m\n\u001b[0;32m----> 1\u001b[0;31m new_merged = all_merged['date_illness'].apply(lambda x: pd.Series(pd.date_range(all_merged[\"datetime\"] - pd.Timedelta(days=15),\n\u001b[0m\u001b[1;32m      2\u001b[0m                                                  all_merged[\"datetime\"] + pd.Timedelta(days=15))))\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/series.py\u001b[0m in \u001b[0;36mapply\u001b[0;34m(self, func, convert_dtype, args, **kwargs)\u001b[0m\n\u001b[1;32m   4431\u001b[0m         \u001b[0mdtype\u001b[0m\u001b[0;34m:\u001b[0m \u001b[0mfloat64\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   4432\u001b[0m         \"\"\"\n\u001b[0;32m-> 4433\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mSeriesApply\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mfunc\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mconvert_dtype\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0margs\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mkwargs\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   4434\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   4435\u001b[0m     def _reduce(\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/apply.py\u001b[0m in \u001b[0;36mapply\u001b[0;34m(self)\u001b[0m\n\u001b[1;32m   1086\u001b[0m             \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply_str\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1087\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1088\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply_standard\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1089\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1090\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0magg\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/apply.py\u001b[0m in \u001b[0;36mapply_standard\u001b[0;34m(self)\u001b[0m\n\u001b[1;32m   1141\u001b[0m                 \u001b[0;31m# List[Union[Callable[..., Any], str]]]]]\"; expected\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1142\u001b[0m                 \u001b[0;31m# \"Callable[[Any], Any]\"\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1143\u001b[0;31m                 mapped = lib.map_infer(\n\u001b[0m\u001b[1;32m   1144\u001b[0m                     \u001b[0mvalues\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1145\u001b[0m                     \u001b[0mf\u001b[0m\u001b[0;34m,\u001b[0m  \u001b[0;31m# type: ignore[arg-type]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/_libs/lib.pyx\u001b[0m in \u001b[0;36mpandas._libs.lib.map_infer\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;32m/var/folders/pb/153ktjvx3jgbjd56166cc01h0000gn/T/ipykernel_56707/2081453489.py\u001b[0m in \u001b[0;36m<lambda>\u001b[0;34m(x)\u001b[0m\n\u001b[0;32m----> 1\u001b[0;31m new_merged = all_merged['date_illness'].apply(lambda x: pd.Series(pd.date_range(all_merged[\"datetime\"] - pd.Timedelta(days=15),\n\u001b[0m\u001b[1;32m      2\u001b[0m                                                  all_merged[\"datetime\"] + pd.Timedelta(days=15))))\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/indexes/datetimes.py\u001b[0m in \u001b[0;36mdate_range\u001b[0;34m(start, end, periods, freq, tz, normalize, name, closed, inclusive, **kwargs)\u001b[0m\n\u001b[1;32m   1085\u001b[0m         \u001b[0mfreq\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;34m\"D\"\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1086\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1087\u001b[0;31m     dtarr = DatetimeArray._generate_range(\n\u001b[0m\u001b[1;32m   1088\u001b[0m         \u001b[0mstart\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mstart\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1089\u001b[0m         \u001b[0mend\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mend\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/arrays/datetimes.py\u001b[0m in \u001b[0;36m_generate_range\u001b[0;34m(cls, start, end, periods, freq, tz, normalize, ambiguous, nonexistent, inclusive)\u001b[0m\n\u001b[1;32m    410\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    411\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mstart\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 412\u001b[0;31m             \u001b[0mstart\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mTimestamp\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mstart\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    413\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    414\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mend\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/_libs/tslibs/timestamps.pyx\u001b[0m in \u001b[0;36mpandas._libs.tslibs.timestamps.Timestamp.__new__\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/_libs/tslibs/conversion.pyx\u001b[0m in \u001b[0;36mpandas._libs.tslibs.conversion.convert_to_tsobject\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;31mTypeError\u001b[0m: Cannot convert input [0         2017-01-18\n1         2017-01-19\n2         2017-01-20\n3         2017-01-21\n4         2017-01-22\n             ...    \n2569024   2022-06-23\n2569025   2022-06-24\n2569026   2022-06-25\n2569027   2022-06-26\n2569028   2022-06-27\nName: datetime, Length: 2569029, dtype: datetime64[ns]] of type <class 'pandas.core.series.Series'> to Timestamp"
+     ]
+    }
+   ],
+   "source": [
+    "#\n",
+    "new_merged = all_merged['date_illness'].apply(lambda x: pd.Series(pd.date_range(all_merged[\"datetime\"] - pd.Timedelta(days=15),\n",
+    "                                                 all_merged[\"datetime\"] + pd.Timedelta(days=15))))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "id": "016f02fa",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "TypeError",
+     "evalue": "Cannot convert input [0         2017-01-18\n1         2017-01-19\n2         2017-01-20\n3         2017-01-21\n4         2017-01-22\n             ...    \n2569024   2022-06-23\n2569025   2022-06-24\n2569026   2022-06-25\n2569027   2022-06-26\n2569028   2022-06-27\nName: datetime, Length: 2569029, dtype: datetime64[ns]] of type <class 'pandas.core.series.Series'> to Timestamp",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mTypeError\u001b[0m                                 Traceback (most recent call last)",
+      "\u001b[0;32m/var/folders/pb/153ktjvx3jgbjd56166cc01h0000gn/T/ipykernel_56707/1473689509.py\u001b[0m in \u001b[0;36m<module>\u001b[0;34m\u001b[0m\n\u001b[0;32m----> 1\u001b[0;31m new_merged = all_merged[\"date_illness\"].apply(lambda x: pd.Series(pd.date_range(all_merged[\"datetime\"] - pd.Timedelta(days=15),\n\u001b[0m\u001b[1;32m      2\u001b[0m                                                  all_merged[\"datetime\"] + pd.Timedelta(days=15))))\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/series.py\u001b[0m in \u001b[0;36mapply\u001b[0;34m(self, func, convert_dtype, args, **kwargs)\u001b[0m\n\u001b[1;32m   4431\u001b[0m         \u001b[0mdtype\u001b[0m\u001b[0;34m:\u001b[0m \u001b[0mfloat64\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   4432\u001b[0m         \"\"\"\n\u001b[0;32m-> 4433\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mSeriesApply\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mfunc\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mconvert_dtype\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0margs\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mkwargs\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   4434\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   4435\u001b[0m     def _reduce(\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/apply.py\u001b[0m in \u001b[0;36mapply\u001b[0;34m(self)\u001b[0m\n\u001b[1;32m   1086\u001b[0m             \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply_str\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1087\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1088\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply_standard\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1089\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1090\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0magg\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/apply.py\u001b[0m in \u001b[0;36mapply_standard\u001b[0;34m(self)\u001b[0m\n\u001b[1;32m   1141\u001b[0m                 \u001b[0;31m# List[Union[Callable[..., Any], str]]]]]\"; expected\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1142\u001b[0m                 \u001b[0;31m# \"Callable[[Any], Any]\"\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1143\u001b[0;31m                 mapped = lib.map_infer(\n\u001b[0m\u001b[1;32m   1144\u001b[0m                     \u001b[0mvalues\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1145\u001b[0m                     \u001b[0mf\u001b[0m\u001b[0;34m,\u001b[0m  \u001b[0;31m# type: ignore[arg-type]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/_libs/lib.pyx\u001b[0m in \u001b[0;36mpandas._libs.lib.map_infer\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;32m/var/folders/pb/153ktjvx3jgbjd56166cc01h0000gn/T/ipykernel_56707/1473689509.py\u001b[0m in \u001b[0;36m<lambda>\u001b[0;34m(x)\u001b[0m\n\u001b[0;32m----> 1\u001b[0;31m new_merged = all_merged[\"date_illness\"].apply(lambda x: pd.Series(pd.date_range(all_merged[\"datetime\"] - pd.Timedelta(days=15),\n\u001b[0m\u001b[1;32m      2\u001b[0m                                                  all_merged[\"datetime\"] + pd.Timedelta(days=15))))\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/indexes/datetimes.py\u001b[0m in \u001b[0;36mdate_range\u001b[0;34m(start, end, periods, freq, tz, normalize, name, closed, inclusive, **kwargs)\u001b[0m\n\u001b[1;32m   1085\u001b[0m         \u001b[0mfreq\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;34m\"D\"\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1086\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1087\u001b[0;31m     dtarr = DatetimeArray._generate_range(\n\u001b[0m\u001b[1;32m   1088\u001b[0m         \u001b[0mstart\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mstart\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1089\u001b[0m         \u001b[0mend\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mend\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/core/arrays/datetimes.py\u001b[0m in \u001b[0;36m_generate_range\u001b[0;34m(cls, start, end, periods, freq, tz, normalize, ambiguous, nonexistent, inclusive)\u001b[0m\n\u001b[1;32m    410\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    411\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mstart\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 412\u001b[0;31m             \u001b[0mstart\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mTimestamp\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mstart\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    413\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    414\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mend\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/_libs/tslibs/timestamps.pyx\u001b[0m in \u001b[0;36mpandas._libs.tslibs.timestamps.Timestamp.__new__\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;32m~/opt/anaconda3/lib/python3.9/site-packages/pandas/_libs/tslibs/conversion.pyx\u001b[0m in \u001b[0;36mpandas._libs.tslibs.conversion.convert_to_tsobject\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;31mTypeError\u001b[0m: Cannot convert input [0         2017-01-18\n1         2017-01-19\n2         2017-01-20\n3         2017-01-21\n4         2017-01-22\n             ...    \n2569024   2022-06-23\n2569025   2022-06-24\n2569026   2022-06-25\n2569027   2022-06-26\n2569028   2022-06-27\nName: datetime, Length: 2569029, dtype: datetime64[ns]] of type <class 'pandas.core.series.Series'> to Timestamp"
+     ]
+    }
+   ],
+   "source": [
+    "new_merged = all_merged[\"date_illness\"].apply(lambda x: pd.Series(pd.date_range(all_merged[\"datetime\"] - pd.Timedelta(days=15),\n",
+    "                                                 all_merged[\"datetime\"] + pd.Timedelta(days=15))))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "id": "4e96cd34",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "user_id (0, 4)\n",
+      "datetime (0, 4)\n",
+      "dailyRMSSD (0, 4)\n",
+      "sleepRMSSD (2332290, 4)\n"
+     ]
+    }
+   ],
+   "source": [
+    "#verify if no values are missing\n",
+    "\n",
+    "cols = fitbit_hrv.columns\n",
+    "for col in cols:\n",
+    "    print (col, fitbit_hrv[fitbit_hrv[col]==0].shape)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "f7a9ce06",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b2b20f22",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#needed codes:\n",
+    "fitbit_hr[\"user_id\"].nunique()\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "87f934bb",
+   "metadata": {},
+   "source": [
+    "#### Next week:\n",
+    "-Missing values \n",
+    "-Descriptive \n",
+    "-Regression? "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b25c143a",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
